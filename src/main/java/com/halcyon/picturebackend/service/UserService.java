@@ -18,6 +18,15 @@ import java.util.List;
 public interface UserService extends IService<User> {
 
     /**
+     * 是否为管理员
+     *
+     * @param user
+     * @return
+     */
+    boolean isAdmin(User user);
+
+
+    /**
      * 用户注册
      *
      * @param userAccount   用户账户
