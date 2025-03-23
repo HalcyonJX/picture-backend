@@ -2,10 +2,7 @@ package com.halcyon.picturebackend.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.halcyon.picturebackend.model.dto.picture.PictureQueryRequest;
-import com.halcyon.picturebackend.model.dto.picture.PictureReviewRequest;
-import com.halcyon.picturebackend.model.dto.picture.PictureUploadByBatchRequest;
-import com.halcyon.picturebackend.model.dto.picture.PictureUploadRequest;
+import com.halcyon.picturebackend.model.dto.picture.*;
 import com.halcyon.picturebackend.model.entity.Picture;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.halcyon.picturebackend.model.entity.User;
@@ -101,4 +98,28 @@ public interface PictureService extends IService<Picture> {
      * @param oldPicture
      */
     void clearPictureFile(Picture oldPicture);
+
+    /**
+     * 删除图片
+     *
+     * @param pictureId
+     * @param loginUser
+     */
+    void deletePicture(long pictureId, User loginUser);
+
+    /**
+     * 编辑图片
+     *
+     * @param pictureEditRequest
+     * @param loginUser
+     */
+    void editPicture(PictureEditRequest pictureEditRequest, User loginUser);
+
+    /**
+     * 校验空间图片的权限
+     *
+     * @param loginUser
+     * @param picture
+     */
+    void checkPictureAuth(User loginUser, Picture picture);
 }
