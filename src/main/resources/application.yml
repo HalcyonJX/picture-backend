@@ -52,3 +52,6 @@ knife4j:
         api-rule: package
         api-rule-resources:
           - com.halcyon.picturebackend.controller
+# 阿里云 AI 配置
+aliYunAi:
+  apiKey: xxxx
