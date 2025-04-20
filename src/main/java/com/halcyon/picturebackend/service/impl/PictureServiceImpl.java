@@ -345,54 +345,57 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
 
     @Override
     public Integer uploadPictureByBatch(PictureUploadByBatchRequest pictureUploadByBatchRequest, User loginUser) {
+        // 校验参数
         String searchText = pictureUploadByBatchRequest.getSearchText();
-        //格式化数量
         Integer count = pictureUploadByBatchRequest.getCount();
-        ThrowUtils.throwIf(count > 30, ErrorCode.PARAMS_ERROR, "数量不能超过 30");
+        ThrowUtils.throwIf(count > 30, ErrorCode.PARAMS_ERROR, "最多 30 条");
         // 名称前缀默认等于搜索关键词
         String namePrefix = pictureUploadByBatchRequest.getNamePrefix();
         if (StrUtil.isBlank(namePrefix)) {
             namePrefix = searchText;
         }
-        //要抓取的地址
+        // 抓取内容
         String fetchUrl = String.format("https://cn.bing.com/images/async?q=%s&mmasync=1", searchText);
         Document document;
-        try{
+        try {
             document = Jsoup.connect(fetchUrl).get();
-        }catch (IOException e){
+        } catch (IOException e) {
             log.error("获取页面失败", e);
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取页面失败");
         }
+        // 解析内容
         Element div = document.getElementsByClass("dgControl").first();
-        if(ObjUtil.isNull(div)){
+        if (ObjUtil.isEmpty(div)) {
             throw new BusinessException(ErrorCode.OPERATION_ERROR, "获取元素失败");
         }
-        Elements imgElements = div.getElementsByTag("img.ming");
+        Elements imgElementList = div.select("img.mimg");
+        // 遍历元素，依次处理上传图片
         int uploadCount = 0;
-        for (Element imgElement : imgElements){
+        for (Element imgElement : imgElementList) {
             String fileUrl = imgElement.attr("src");
-            if(StrUtil.isBlank(fileUrl)){
-                log.info("当前链接为空，已跳过: {}", fileUrl);
+            if (StrUtil.isBlank(fileUrl)) {
+                log.info("当前链接为空，已跳过：{}", fileUrl);
                 continue;
             }
-            //处理图片上传地址，防止出现转义问题
+            // 处理图片的地址，防止转义或者和对象存储冲突的问题
+            // codefather.cn?yupi=dog，应该只保留 codefather.cn
             int questionMarkIndex = fileUrl.indexOf("?");
-            if(questionMarkIndex > -1){
+            if (questionMarkIndex > -1) {
                 fileUrl = fileUrl.substring(0, questionMarkIndex);
             }
-            //上传图片
+            // 上传图片
             PictureUploadRequest pictureUploadRequest = new PictureUploadRequest();
             pictureUploadRequest.setFileUrl(fileUrl);
             pictureUploadRequest.setPicName(namePrefix + (uploadCount + 1));
             try {
-                PictureVO pictureVO = this.uploadPicture(fileUrl,pictureUploadRequest,loginUser);
-                log.info("图片上传成功, id = {}", pictureVO.getId());
+                PictureVO pictureVO = this.uploadPicture(fileUrl, pictureUploadRequest, loginUser);
+                log.info("图片上传成功，id = {}", pictureVO.getId());
                 uploadCount++;
-            }catch (Exception e){
+            } catch (Exception e) {
                 log.error("图片上传失败", e);
                 continue;
             }
-            if (uploadCount >= count){
+            if (uploadCount >= count) {
                 break;
             }
         }
