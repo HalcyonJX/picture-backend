@@ -10,6 +10,8 @@ import com.halcyon.picturebackend.annotation.AuthCheck;
 import com.halcyon.picturebackend.api.aliyunai.AliYunAiApi;
 import com.halcyon.picturebackend.api.aliyunai.model.CreateOutPaintingTaskResponse;
 import com.halcyon.picturebackend.api.aliyunai.model.GetOutPaintingTaskResponse;
+import com.halcyon.picturebackend.api.imagesearch.SoImageSearchApiFacade;
+import com.halcyon.picturebackend.api.imagesearch.model.SoImageSearchResult;
 import com.halcyon.picturebackend.common.BaseResponse;
 import com.halcyon.picturebackend.common.DeleteRequest;
 import com.halcyon.picturebackend.common.ResultUtils;
@@ -39,6 +41,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -329,6 +332,59 @@ public class PictureController {
         // 返回结果
         return ResultUtils.success(pictureVOPage);
     }
+
+    /**
+     * 以图搜图
+     */
+    @PostMapping("/search/picture")
+    public BaseResponse<List<SoImageSearchResult>> searchPictureByPicture(@RequestBody SearchPictureByPictureRequest searchPictureByPictureRequest) {
+        ThrowUtils.throwIf(searchPictureByPictureRequest == null, ErrorCode.PARAMS_ERROR);
+        Long pictureId = searchPictureByPictureRequest.getPictureId();
+        ThrowUtils.throwIf(pictureId == null || pictureId <= 0, ErrorCode.PARAMS_ERROR);
+        Picture oldPicture = pictureService.getById(pictureId);
+        ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
+        List<SoImageSearchResult> resultList = new ArrayList<>();
+        // 这个 start 是控制查询多少页, 每页是 20 条
+        int start = 0;
+        while (resultList.size() <= 50) {
+            List<SoImageSearchResult> tempList = SoImageSearchApiFacade.searchImage(
+                    StrUtil.isNotBlank(oldPicture.getUrl()) ? oldPicture.getUrl() : oldPicture.getUrl(), start
+            );
+            if (tempList.isEmpty()) {
+                break;
+            }
+            resultList.addAll(tempList);
+            start += tempList.size();
+        }
+        return ResultUtils.success(resultList);
+    }
+
+    /**
+     * 按照颜色搜索
+     */
+    @PostMapping("/search/color")
+    public BaseResponse<List<PictureVO>> searchPictureByColor(@RequestBody SearchPictureByColorRequest searchPictureByColorRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(searchPictureByColorRequest == null, ErrorCode.PARAMS_ERROR);
+        String picColor = searchPictureByColorRequest.getPicColor();
+        Long spaceId = searchPictureByColorRequest.getSpaceId();
+        User loginUser = userService.getLoginUser(request);
+        List<PictureVO> pictureVOList = pictureService.searchPictureByColor(spaceId, picColor, loginUser);
+        return ResultUtils.success(pictureVOList);
+    }
+
+    /**
+     * 批量编辑图片
+     */
+    @PostMapping("/edit/batch")
+    public BaseResponse<Boolean> editPictureByBatch(@RequestBody PictureEditByBatchRequest pictureEditByBatchRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(pictureEditByBatchRequest == null, ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        pictureService.editPictureByBatch(pictureEditByBatchRequest, loginUser);
+        return ResultUtils.success(true);
+    }
+
+
+
     /**
      * 创建 AI 扩图任务
      */
