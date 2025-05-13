@@ -9,6 +9,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.halcyon.picturebackend.constant.UserConstant;
 import com.halcyon.picturebackend.exception.BusinessException;
 import com.halcyon.picturebackend.exception.ErrorCode;
+import com.halcyon.picturebackend.manager.auth.StpKit;
 import com.halcyon.picturebackend.model.dto.user.UserQueryRequest;
 import com.halcyon.picturebackend.model.entity.User;
 import com.halcyon.picturebackend.model.enums.UserRoleEnum;
@@ -25,6 +26,8 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.halcyon.picturebackend.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
 * @author 张嘉鑫
@@ -103,14 +106,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
             throw new BusinessException(ErrorCode.PARAMS_ERROR,"用户不存在或密码错误");
         }
         //3.记录用户的登录状态
-        request.getSession().setAttribute(UserConstant.USER_LOGIN_STATE, user);
+        request.getSession().setAttribute(USER_LOGIN_STATE, user);
+        // 4. 记录用户登录态到 Sa-token，便于空间鉴权时使用，注意保证该用户信息与 SpringSession 中的信息过期时间一致
+        StpKit.SPACE.login(user.getId());
+        StpKit.SPACE.getSession().set(USER_LOGIN_STATE, user);
         return this.getLoginUserVO(user);
     }
 
     @Override
     public User getLoginUser(HttpServletRequest request) {
         //先判断是否已经登录
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         User currentUser = (User) userObj;
         if(currentUser == null || currentUser.getId() == null){
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
@@ -127,12 +133,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     @Override
     public boolean userLogout(HttpServletRequest request) {
         //先判断是否已登录
-        Object userObj = request.getSession().getAttribute(UserConstant.USER_LOGIN_STATE);
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
         if(userObj == null){
             throw new BusinessException(ErrorCode.OPERATION_ERROR,"未登录");
         }
         //移除登录态
-        request.getSession().removeAttribute(UserConstant.USER_LOGIN_STATE);
+        request.getSession().removeAttribute(USER_LOGIN_STATE);
         return true;
     }
 

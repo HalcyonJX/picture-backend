@@ -9,6 +9,7 @@ import com.halcyon.picturebackend.constant.UserConstant;
 import com.halcyon.picturebackend.exception.BusinessException;
 import com.halcyon.picturebackend.exception.ErrorCode;
 import com.halcyon.picturebackend.exception.ThrowUtils;
+import com.halcyon.picturebackend.manager.auth.SpaceUserAuthManager;
 import com.halcyon.picturebackend.model.dto.space.*;
 import com.halcyon.picturebackend.model.entity.Space;
 import com.halcyon.picturebackend.model.entity.User;
@@ -37,6 +38,9 @@ public class SpaceController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private SpaceUserAuthManager spaceUserAuthManager;
 
     @PostMapping("/add")
     public BaseResponse<Long> addSpace(@RequestBody SpaceAddRequest spaceAddRequest, HttpServletRequest request) {
@@ -111,8 +115,12 @@ public class SpaceController {
         // 查询数据库
         Space space = spaceService.getById(id);
         ThrowUtils.throwIf(space == null, ErrorCode.NOT_FOUND_ERROR);
+        SpaceVO spaceVO = spaceService.getSpaceVO(space, request);
+        User loginUser = userService.getLoginUser(request);
+        List<String> permissionList = spaceUserAuthManager.getPermissionList(space, loginUser);
+        spaceVO.setPermissionList(permissionList);
         // 获取封装类
-        return ResultUtils.success(spaceService.getSpaceVO(space, request));
+        return ResultUtils.success(spaceVO);
     }
 
     /**
