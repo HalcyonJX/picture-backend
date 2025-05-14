@@ -441,20 +441,30 @@ public class PictureServiceImpl extends ServiceImpl<PictureMapper, Picture>
         ThrowUtils.throwIf(oldPicture == null, ErrorCode.NOT_FOUND_ERROR);
         // 校验权限，已经改为使用注解鉴权
 //        checkPictureAuth(loginUser, oldPicture);
-        // 开启事务
-        transactionTemplate.execute(status -> {
-            // 操作数据库
+        //判断是否为公共图库
+        if(oldPicture.getSpaceId() == null){
+            // 仅本人或者管理员可删除
+            if (!oldPicture.getUserId().equals(loginUser.getId()) && !userService.isAdmin(loginUser)) {
+                throw new BusinessException(ErrorCode.NO_AUTH_ERROR);
+            }
             boolean result = this.removeById(pictureId);
             ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
-            // 更新空间的使用额度，释放额度
-            boolean update = spaceService.lambdaUpdate()
-                    .eq(Space::getId, oldPicture.getSpaceId())
-                    .setSql("totalSize = totalSize - " + oldPicture.getPicSize())
-                    .setSql("totalCount = totalCount - 1")
-                    .update();
-            ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "额度更新失败");
-            return true;
-        });
+        }else {
+            // 开启事务
+            transactionTemplate.execute(status -> {
+                // 操作数据库
+                boolean result = this.removeById(pictureId);
+                ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
+                // 更新空间的使用额度，释放额度
+                boolean update = spaceService.lambdaUpdate()
+                        .eq(Space::getId, oldPicture.getSpaceId())
+                        .setSql("totalSize = totalSize - " + oldPicture.getPicSize())
+                        .setSql("totalCount = totalCount - 1")
+                        .update();
+                ThrowUtils.throwIf(!update, ErrorCode.OPERATION_ERROR, "额度更新失败");
+                return true;
+            });
+        }
         // 异步清理文件
         this.clearPictureFile(oldPicture);
     }
